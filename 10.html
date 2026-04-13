@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoe Care Angels Gacha</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            background-color: #FFFDF8; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+            overflow: hidden; 
+            color: #343A40; 
+        }
+
+        /* เอฟเฟกต์แสงแฟลชสีขาวตอนสุ่ม */
+        #flash { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(255, 255, 255, 0.95); 
+            opacity: 0; pointer-events: none; z-index: 1000; 
+        }
+
+        #gacha-app { text-align: center; width: 400px; z-index: 10; }
+        #gacha-app h1 { color: #A08C75; font-size: 26px; margin-bottom: 20px; }
+
+        /* ตัวตู้กาชาปอง */
+        #gacha-machine { 
+            position: relative; width: 320px; height: 480px; margin: 0 auto; 
+            border-radius: 40px; background: linear-gradient(to bottom, #FFEBF0, #FFF5D1); 
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1); border: 6px solid #fff; 
+        }
+        #gacha-machine::before { 
+            content: "Shoe Care Angels"; position: absolute; top: 15px; left: 50%; 
+            transform: translateX(-50%); background-color: #fff; padding: 5px 20px; 
+            border-radius: 20px; color: #FFB3C6; font-weight: bold; font-size: 16px; 
+            border: 2px solid #FFEBF0; box-shadow: 0 4px 8px rgba(0,0,0,0.05); 
+        }
+
+        /* กระจกใสใส่ลูกบอล */
+        #capsule-display { 
+            position: absolute; top: 70px; left: 50%; transform: translateX(-50%); 
+            width: 260px; height: 260px; border-radius: 50%; 
+            background-color: rgba(255, 255, 255, 0.7); border: 4px solid #fff; 
+            box-shadow: inset 0 10px 20px rgba(0,0,0,0.05); overflow: hidden; 
+        }
+
+        /* ที่หมุนไข่ */
+        #gacha-handle { 
+            position: absolute; bottom: 65px; left: 50%; transform: translateX(-50%); 
+            width: 80px; height: 80px; border-radius: 50%; background-color: #FFD8A8; 
+            border: 5px solid #fff; cursor: pointer; box-shadow: 0 6px 12px rgba(0,0,0,0.1); 
+            transition: transform 0.2s ease-out; 
+        }
+        
+        /* ช่องรับไข่ด้านล่าง */
+        #capsule-slot { 
+            position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); 
+            width: 120px; height: 50px; border-radius: 30px 30px 0 0; 
+            background-color: #fff; border: 3px solid #FFEBF0; z-index: -1; 
+        }
+
+        /* ปุ่มกดสุ่ม */
+        #draw-button { 
+            margin-top: 35px; padding: 15px 40px; font-size: 20px; font-weight: bold; 
+            font-family: 'Sarabun', sans-serif; color: #fff; 
+            background: linear-gradient(to right, #FFC1CC, #FFB3C6); 
+            border: none; border-radius: 50px; cursor: pointer; 
+            box-shadow: 0 8px 15px rgba(255, 179, 198, 0.4); transition: all 0.2s; 
+        }
+        #draw-button:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(255, 179, 198, 0.6); }
+        #draw-button:active { transform: scale(0.95); }
+        #draw-button.disabled { background: #ccc; box-shadow: none; cursor: not-allowed; pointer-events: none; }
+        
+        /* Overlay หน้าจอตอนเปิดการ์ด */
+        #card-reveal-overlay { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: rgba(0, 0, 0, 0.6); display: none; 
+            justify-content: center; align-items: center; z-index: 2000; 
+        }
+
+        /* กรอบการ์ดที่จะเด้งขึ้นมา */
+        #card-modal { 
+            position: relative; padding: 25px; border-radius: 30px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3); text-align: left; width: 360px; 
+            animation: bounceInCard 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards; 
+            border: 8px solid #fff; 
+        }
+        
+        /* ปุ่มปิดหน้าการ์ด */
+        #close-button { 
+            position: absolute; top: -15px; right: -15px; width: 40px; height: 40px; 
+            background-color: #fff; color: #333; border-radius: 50%; font-size: 24px; 
+            font-weight: bold; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1); 
+        }
+
+        #card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid rgba(255,255,255,0.5); padding-bottom: 10px; }
+        #card-header h2 { margin: 0; font-size: 22px; font-weight: 700; }
+        .type-label { font-size: 14px; font-weight: bold; padding: 5px 12px; border-radius: 15px; }
+        
+        /* กรอบใส่รูปภาพ */
+        #card-image-container { 
+            width: 100%; height: 240px; border-radius: 20px; overflow: hidden; 
+            margin-bottom: 15px; background-color: #fff; border: 4px solid rgba(255,255,255,0.7); 
+            display: flex; justify-content: center; align-items: center; 
+        }
+        #card-image-tag { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+        #card-info h4 { margin: 10px 0 5px 0; font-size: 15px; font-weight: bold; }
+        #card-info p { margin: 0 0 10px 0; font-size: 14px; line-height: 1.5; }
+        #card-info hr { border: none; border-top: 1px dashed rgba(0,0,0,0.2); margin: 15px 0; }
+        .partner-label { font-size: 14px; font-weight: bold; margin-bottom: 5px; display: block; }
+        .combo-desc { font-size: 13px; line-height: 1.4; opacity: 0.9; }
+
+        /* Animations */
+        @keyframes shakeButton { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-4px) rotate(-2deg); } 40%, 80% { transform: translateX(4px) rotate(2deg); } }
+        @keyframes shakeMachine { 0%, 100% { transform: translateY(0); } 10%, 50%, 90% { transform: translateY(-6px) translateX(2px); } 30%, 70% { transform: translateY(6px) translateX(-2px); } }
+        @keyframes flashGlow { 0% { opacity: 0; } 40% { opacity: 1; } 100% { opacity: 0; } }
+        @keyframes bounceInCard { 0% { transform: scale(0.3) translateY(200px); opacity: 0; } 60% { transform: scale(1.05) translateY(-20px); opacity: 1; } 80% { transform: scale(0.95) translateY(5px); } 100% { transform: scale(1) translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div id="flash"></div>
+
+    <div id="gacha-app">
+        <h1>Gacha Shoe Care Angels</h1>
+        <div id="gacha-machine">
+            <div id="capsule-display"></div>
+            <div id="gacha-handle" onclick="startDraw()"></div>
+            <div id="capsule-slot"></div>
+        </div>
+        <button id="draw-button" onclick="startDraw()">  หยอดเหรียญสุ่มการ์ด!</button>
+    </div>
+
+    <div id="card-reveal-overlay">
+        <div id="card-modal">
+            <button id="close-button" onclick="closeModal()">×</button>
+            <div id="card-header">
+                <h2 id="card-title">ชื่อการ์ด</h2>
+                <span id="card-type-label" class="type-label">ประเภท</span>
+            </div>
+            <div id="card-image-container">
+                <img id="card-image-tag" src="" alt="Character">
+            </div>
+            <div id="card-info">
+                <h4>คุณเป็นคนแบบไหน:</h4>
+                <p id="card-person-desc">รายละเอียด...</p>
+                <hr>
+                <span class="partner-label">🤝 คู่หูที่เหมาะที่สุด: <span id="card-partner">...</span></span>
+                <h4>✨ คอมโบนี้ทำงานยังไง:</h4>
+                <p class="combo-desc" id="card-combo-info">ข้อมูลคอมโบ...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ฐานข้อมูลการ์ดทั้ง 3 ใบ พร้อมสีและชื่อไฟล์รูปที่ถูกต้อง
+        const cards = [
+            {
+                name: "🍋 เลมอนจัง",
+                typeLabel: "Lemon",
+                pDesc: "ร่าเริง พลังงานล้นเหลือ ชอบทำกิจกรรม เป็นสายสปอร์ตที่ตรงไปตรงมา ไม่ชอบความเหนอะหนะ จัดการปัญหาแบบฉับไว!",
+                partner: "🌿 ยูคาลิปตัส",
+                combo: "คอมโบ 'เคลียร์จบสยบหมักหมม' เมื่อสายลุย (เลมอน) ที่เก่งเรื่องสลายกลิ่นเหงื่อเปรี้ยวๆ มาเจอกับบอดี้การ์ดสายเนี้ยบ (ยูคาลิปตัส) ที่เก่งเรื่องฆ่าเชื้อโรค คอมโบนี้จึงเหมาะสุดๆ สำหรับรองเท้ากีฬาที่เพิ่งลุยหนักๆ หรือรองเท้าที่เปียกเหงื่อผสมความชื้น ดับกลิ่นเด็ดขาดพร้อมฆ่าเชื้อแบคทีเรียไม่ให้เหลือซาก!",
+                imgPath: "เด้ก1.png", 
+                colorBright: "#FFEC99", colorMain: "#FFD8A8", colorText: "#343A40"
+            },
+            {
+                name: "🌿 ยูคาลิปเป้",
+                typeLabel: "Eucalyptus",
+                pDesc: "สุขุม เยือกเย็น รักความสะอาดขั้นสุด (Perfectionist) เป็นเหมือนผู้ปกป้องที่พึ่งพาได้เสมอในสถานการณ์วิกฤต (เช่น ฝนตก รองเท้าเปียก)",
+                partner: "🪻 ลาเวนเดอร์",
+                combo: "คอมโบ 'สปารองเท้า V.I.P' เมื่อสายเนี้ยบจอมทำลายล้างเชื้อรา (ยูคาลิปตัส) มาจับคู่กับสายฮีลลิ่งที่อ่อนโยน (ลาเวนเดอร์) เพอร์เฟกต์มากสำหรับรองเท้าที่ต้องเก็บเข้าตู้นานๆ หรือรองเท้าหนัง/บูท ยูคาลิปตัสจะเคลียร์เชื้อโรคให้เกลี้ยง ส่วนลาเวนเดอร์จะปรับอากาศให้หอมละมุนและไล่แมลงครับ",
+                imgPath: "เด้ก2.png", 
+                colorBright: "#E2F9E1", colorMain: "#C3FAE8", colorText: "#343A40"
+            },
+            {
+                name: "🪻 ลาเวนเดอร์นี่",
+                typeLabel: "Lavender",
+                pDesc: "อบอุ่น นุ่มนวล ใส่ใจรายละเอียด เป็นผู้ฟังที่ดี คอยปลอบประโลมและฮีลใจให้ทุกคนรู้สึกผ่อนคลายจากความเหนื่อยล้า",
+                partner: "🍋 เลมอน",
+                combo: "คอมโบ 'Morning Refresh' (สดใสรับวันใหม่) เมื่อความนุ่มนวลเบลนด์เข้ากับความสดใส เหมาะมากกับรองเท้าผ้าใบคู่เก่ง ลาเวนเดอร์จะช่วยจัดการกลิ่นอับสะสมข้ามคืนอย่างอ่อนโยน ในขณะที่เลมอนจะเติมความเฟรชตื่นตัวให้พร้อมสวมใส่ในตอนเช้าแบบไม่ฉุนแสบจมูกครับ",
+                imgPath: "เด้ก3.png", 
+                colorBright: "#F3F0FF", colorMain: "#E5DBFF", colorText: "#1A1A24" 
+            }
+        ];
+
+        // --- ระบบฟิสิกส์ลูกบอลในตู้ด้วย Matter.js ---
+        const Engine = Matter.Engine, Render = Matter.Render, Runner = Matter.Runner, Bodies = Matter.Bodies, Composite = Matter.Composite, Events = Matter.Events, Body = Matter.Body;
+        const engine = Engine.create();
+        engine.world.gravity.y = 0.2; // แรงโน้มถ่วงอ่อนๆ ให้บอลลอยได้ง่ายขึ้น
+
+        const render = Render.create({
+            element: document.getElementById('capsule-display'),
+            engine: engine,
+            options: { width: 260, height: 260, wireframes: false, background: 'transparent' }
+        });
+
+        // สร้างกำแพงล่องหนล้อมรอบกระจกใส
+        const wallOptions = { isStatic: true, render: { visible: false } };
+        Composite.add(engine.world, [
+            Bodies.rectangle(130, 270, 280, 40, wallOptions), // พื้น
+            Bodies.rectangle(-20, 130, 40, 280, wallOptions), // ซ้าย
+            Bodies.rectangle(280, 130, 40, 280, wallOptions), // ขวา
+            Bodies.rectangle(130, -20, 280, 40, wallOptions)  // เพดาน
+        ]);
+
+        // สร้างลูกบอลไข่กาชาปอง
+        const gachaBalls = [];
+        const ballColors = ['#FFD8A8', '#C3FAE8', '#E5DBFF', '#FFB3C6'];
+        for(let i=0; i<18; i++) {
+            const radius = 16 + Math.random() * 4;
+            const ball = Bodies.circle(130 + (Math.random()*100-50), 130 + (Math.random()*100-50), radius, {
+                restitution: 0.9, friction: 0.005, density: 0.04,
+                render: { fillStyle: ballColors[i % ballColors.length], strokeStyle: '#fff', lineWidth: 2 }
+            });
+            gachaBalls.push(ball);
+        }
+        Composite.add(engine.world, gachaBalls);
+
+        // ทำให้ลูกบอลขยับลอยไปมาตลอดเวลา
+        Events.on(engine, 'beforeUpdate', () => {
+            gachaBalls.forEach(ball => {
+                if(Math.random() < 0.15) {
+                    Body.applyForce(ball, ball.position, { x: (Math.random() - 0.5) * 0.003, y: -(Math.random() * 0.004) });
+                }
+            });
+        });
+
+        Render.run(render);
+        const runner = Runner.create();
+        Runner.run(runner, engine);
+
+        // --- ระบบสุ่มและการแสดงผล ---
+        let isDrawing = false;
+        const gachaApp = document.getElementById('gacha-app'), machine = document.getElementById('gacha-machine'), handle = document.getElementById('gacha-handle'), drawButton = document.getElementById('draw-button'), flashOverlay = document.getElementById('flash'), cardRevealOverlay = document.getElementById('card-reveal-overlay'), cardModal = document.getElementById('card-modal');
+        
+        function startDraw() {
+            if (isDrawing) return;
+            isDrawing = true;
+            drawButton.classList.add('disabled');
+
+            // อนิเมชั่นหมุนที่จับและปุ่มสั่น
+            handle.style.transform = "translateX(-50%) rotate(360deg)";
+            drawButton.style.animation = "shakeButton 0.8s ease-out forwards";
+
+            // ทำให้ลูกบอลกระเด็นแรงขึ้นตอนกดสุ่ม
+            gachaBalls.forEach(ball => {
+                Body.applyForce(ball, ball.position, { x: (Math.random() - 0.5) * 0.05, y: -(Math.random() * 0.08) - 0.05 });
+            });
+
+            // ตู้สั่นและแสงแฟลชวาบ
+            setTimeout(() => {
+                machine.style.animation = "shakeMachine 0.8s ease-out forwards";
+                flashOverlay.style.animation = "flashGlow 0.6s ease-out forwards";
+            }, 500);
+
+            // โชว์การ์ด
+            setTimeout(() => {
+                const randomIndex = Math.floor(Math.random() * cards.length);
+                populateCard(cards[randomIndex]);
+                cardRevealOverlay.style.display = 'flex';
+            }, 1200);
+        }
+
+        function populateCard(card) {
+            // ใส่ข้อมูล Text
+            document.getElementById('card-title').innerText = card.name;
+            document.getElementById('card-type-label').innerText = card.typeLabel;
+            document.getElementById('card-person-desc').innerText = card.pDesc;
+            document.getElementById('card-partner').innerText = card.partner;
+            document.getElementById('card-combo-info').innerText = card.combo;
+            
+            // จัดการสีพื้นหลังและสีตัวอักษรของการ์ด
+            cardModal.style.background = `linear-gradient(135deg, ${card.colorBright}, ${card.colorMain})`;
+            cardModal.style.color = card.colorText;
+            
+            const typeLabel = document.getElementById('card-type-label');
+            typeLabel.style.backgroundColor = card.colorBright;
+            typeLabel.style.color = card.colorText;
+            typeLabel.style.border = `1px solid rgba(0,0,0,0.1)`;
+
+            // ดึงรูปมาแสดงผล
+            document.getElementById('card-image-tag').src = card.imgPath;
+        }
+
+        function closeModal() {
+            cardRevealOverlay.style.display = 'none';
+            isDrawing = false;
+            drawButton.classList.remove('disabled');
+            drawButton.style.animation = 'none';
+            machine.style.animation = 'none';
+            handle.style.transform = "translateX(-50%) rotate(0deg)";
+        }
+    </script>
+</body>
+</html>
